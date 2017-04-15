@@ -1,6 +1,43 @@
 function []=MainScript(~)
 % This is the main script for runing relevant functions
 
+% Set the value of global parameters
+ParameterSetting();
+% Initialization
+Initialization();
+
+%DrawElectricalPotential()
+%hold on
+%DrawElectricalField()
+%hold off
+
+figure
+%DrawStreamFunction()
+DrawVelocityFieldMag()
+hold on
+DrawVelocityField()
+end
+
+function []=Initialization()
+% This part is used to initialize useful data
+global EPTruncNum
+global EPCoefList
+
+% Prepare EP coefficients
+for i=0:1:EPTruncNum
+    EPCoefList(i+1)=CoefElectricalPotential(i);
+end
+
+% Prepare LegendreP
+
+% Prepare DLegendreP
+
+% Prepare LegendreQ
+
+% Prepare DLegendreQ
+end
+
+function []=ParameterSetting()
 %--------------------------------------------------------------------------
 % Parameters
 %--------------------------------------------------------------------------
@@ -30,10 +67,16 @@ global EPCoefList % Store coefficients appeared in electrical potential for repe
 EPCoefList=zeros(1,EPTruncNum+1);
 global MeshNum
 MeshNum=200;
+global U_motor % Define the velocity of motor speed (\mu m /s)
+U_motor=0;
+global mu_motor % Define the mobility of motor (unit)
+mu_motor=1;
+end
 
-Initialization();
+function []=DrawElectricalPotential()
+global xi_0
+global MeshNum
 
-%ElectricalPotential(xi_0,pi)
 xi=linspace(xi_0,10*xi_0,MeshNum);
 theta=linspace(0,pi,MeshNum);
 [Xi,Theta]=meshgrid(xi,theta);
@@ -44,42 +87,85 @@ Phi=zeros(size(Xi));
 EPVal=ElectricalPotential(Xi,Theta);
 % contour plot of electrical potential
 contourf(X,Z,EPVal)
-hold on
+end
 
+function []=DrawElectricalField()
+global xi_0
+global MeshNum
 %[startX,startY,startZ]=ProlateSpheroidal2Cartesian_Coor(linspace(xi_0,xi_0,10),linspace(pi/2,pi,10),linspace(0,0,10));
 %streamline(X(101:end,101:end),Z(101:end,101:end),EX(101:end,101:end),EZ(101:end,101:end),startX,startZ);
 % down mesh for better visualization of electrical field
-xi_e=linspace(xi_0,10*xi_0,MeshNum/10);
-theta_e=linspace(0,pi,MeshNum/10);
-[Xi_e,Theta_e]=meshgrid(xi_e,theta_e);
-Phi_e=zeros(size(Xi_e));
-[X_e,Y_e,Z_e]=ProlateSpheroidal2Cartesian_Coor(Xi_e,Theta_e,Phi_e);
+xi=linspace(xi_0,10*xi_0,MeshNum/10);
+theta=linspace(0,pi,MeshNum/10);
+[Xi,Theta]=meshgrid(xi,theta);
+Phi=zeros(size(Xi));
+[X,Y,Z]=ProlateSpheroidal2Cartesian_Coor(Xi,Theta,Phi);
 % Obtain electrical field
-EXiComp=ElectricalFieldXiComp(Xi_e,Theta_e);
-EThetaComp=ElectricalFieldThetaComp(Xi_e,Theta_e);
-[EX,EZ]=ProlateSpheroidal2Cartesian_Comp(Xi_e,Theta_e,EXiComp,EThetaComp);
+EXiComp=ElectricalFieldXiComp(Xi,Theta);
+EThetaComp=ElectricalFieldThetaComp(Xi,Theta);
+[EX,EZ]=ProlateSpheroidal2Cartesian_Comp(Xi,Theta,EXiComp,EThetaComp);
 % quiver plot of electrical field
-quiver(X_e,Z_e,EX,EZ,1.5);
-
+quiver(X,Z,EX,EZ,1.5);
 end
 
-function []=Initialization()
-% This part is used to initialize useful data
-global EPTruncNum
-global EPCoefList
+function []=DrawStreamFunction()
+global xi_0
+global MeshNum
 
-% Prepare EP coefficients
-for i=0:1:EPTruncNum
-    EPCoefList(i+1)=CoefElectricalPotential(i);
+xi=linspace(xi_0,10*xi_0,MeshNum*3);
+theta=linspace(0,pi,MeshNum*2);
+[Xi,Theta]=meshgrid(xi,theta);
+% Because of the axis symmetry, fixed Phi=0
+Phi=zeros(size(Xi));
+% Convert to Cartesian coordinates
+[X,Y,Z]=ProlateSpheroidal2Cartesian_Coor(Xi,Theta,Phi);
+EThetaComp=ElectricalFieldThetaComp(Xi,Theta);
+StreamFuncVal=StokesStreamFunc(Xi,Theta,EThetaComp);
+% contour plot of electrical potential
+contourf(X,Z,StreamFuncVal)
 end
 
-% Prepare LegendreP
+function []=DrawVelocityFieldMag()
+global xi_0
+global MeshNum
 
-% Prepare DLegendreP
+xi=linspace(xi_0,10*xi_0,MeshNum*3);
+theta=linspace(0,pi,MeshNum*2);
+[Xi,Theta]=meshgrid(xi,theta);
+% Because of the axis symmetry, fixed Phi=0
+Phi=zeros(size(Xi));
+% Convert to Cartesian coordinates
+[X,Y,Z]=ProlateSpheroidal2Cartesian_Coor(Xi,Theta,Phi);
+% Obtain velocity field
+VXiComp=VelocityFieldXiComp(Xi,Theta);
+VThetaComp=VelocityFieldThetaComp(Xi,Theta);
+VelocityMag=sqrt(VXiComp.^2+VThetaComp.^2);
+% contour plot of electrical potential
+VelocityMag=ExcludeOutliers(VelocityMag,93,0.001);
+contourf(X,Z,VelocityMag);
+end
 
-% Prepare LegendreQ
-
-% Prepare DLegendreQ
+function []=DrawVelocityField()
+global xi_0
+global MeshNum
+xi=linspace(xi_0,10*xi_0,MeshNum/2);
+theta=linspace(0+0.01,pi-0.01,MeshNum/2);
+[Xi,Theta]=meshgrid(xi,theta);
+Phi=zeros(size(Xi));
+[X,Y,Z]=ProlateSpheroidal2Cartesian_Coor(Xi,Theta,Phi);
+% Obtain velocity field
+VXiComp=VelocityFieldXiComp(Xi,Theta);
+VThetaComp=VelocityFieldThetaComp(Xi,Theta);
+[VX,VZ]=ProlateSpheroidal2Cartesian_Comp(Xi,Theta,VXiComp,VThetaComp);
+% clear infinity value
+% quiver plot of electrical field
+VX=ExcludeOutliers(VX,95,0.01);
+VZ=ExcludeOutliers(VZ,95,0.01);
+VX_norm=VX./sqrt(VX.^2+VZ.^2);
+VZ_norm=VZ./sqrt(VX.^2+VZ.^2);
+quiver(X,Z,VX_norm,VZ_norm,1);
+%[startX,startY,startZ]=ProlateSpheroidal2Cartesian_Coor(linspace(xi_0,xi_0,10),linspace(pi/2,pi,10),linspace(0,0,10));
+%streamline(X,Z,VX_norm,VZ_norm,startX,startZ);
 end
 
 function [X,Y,Z]=ProlateSpheroidal2Cartesian_Coor(Xi,Theta,Phi)
@@ -196,8 +282,15 @@ end
 function [DVal] = DLegendreP(l,m,x)
 % This function is used for calculating derivatives of legendre polynomials
 % simple central difference method
-deltax=1e-6; % x-interval used for calculating
+deltax=1e-5; % x-interval used for calculating
 DVal=(LegendreP(l,m,x+deltax)-LegendreP(l,m,x-deltax))/(2*deltax);
+end
+
+function [DDVal] = DDLegendreP(l,m,x)
+% This function is used for calculating second derivatives of legendre
+% polynoials
+deltax=1e-5;
+DDVal=(DLegendreP(l,m,x+deltax)-DLegendreP(l,m,x-deltax))/(2*deltax);
 end
 
 function [ Coef ] = CoefElectricalPotential( n )
@@ -210,10 +303,122 @@ global LegendreQTruncNum
 Coef=(2*n+1)/2*(1/DLegendreQ(n,cosh(xi_0),LegendreQTruncNum))*(c/(epsilon_0*sinh(xi_0)))*integral(@(theta)EPIntegral(theta,n),pi,0);
 end
 
+function [Val] = StokesStreamFunc(Xi,Theta,ETheta)
+% This function is used for calculating the value of stokes stream function
+% global parameters
+global c
+global xi_0
+global U_motor
+global mu_motor
+% auxiliary variables
+lambda_0=cosh(xi_0);
+Lambda=cosh(Xi);
+Kappa=cos(Theta);
+Omega=c*sqrt(Lambda.^2-1).*sqrt(1-Kappa.^2);
+sigma_1=-lambda_0+lambda_0^2*acoth(lambda_0)+acoth(lambda_0);
+sigma_2=-lambda_0+lambda_0^2*acoth(lambda_0)-acoth(lambda_0);
+% calculation
+% Hydrodynamic part
+HydroUpper=Lambda./(Lambda.^2-1)-(lambda_0^2+1)/(lambda_0^2-1)*acoth(Lambda);
+HydroLower=lambda_0/(lambda_0^2-1)-(lambda_0^2+1)/(lambda_0^2-1)*acoth(lambda_0);
+HydrodynamicPart=-0.5*U_motor*Omega.^2.*(HydroUpper./HydroLower);
+% Electrostatic part
+ElectroFactor=sqrt(lambda_0^2-Kappa.^2)./((lambda_0^2-1)*sqrt(1-Kappa.^2));
+ElectroPart=-0.5*sigma_2/sigma_1*ElectroFactor.*(Lambda-2*lambda_0)*mu_motor.*ETheta;
+% Add these two part together
+Val=HydrodynamicPart+ElectroPart;
+end
+
+function [VXiVal] = VelocityFieldXiComp(Xi,Theta)
+% This function is used for calculating the xi component of velocity field
+% global parameters
+global c
+global xi_0
+global U_motor
+global mu_motor
+% auxiliary variables
+Lambda=cosh(Xi);
+lambda_0=cosh(xi_0);
+Kappa=cos(Theta);
+sigma_1=-lambda_0+lambda_0^2*acoth(lambda_0)+acoth(lambda_0);
+sigma_2=-lambda_0+lambda_0^2*acoth(lambda_0)-acoth(lambda_0);
+% Calculation
+% Hydrodynamic Part
+HydroFactor=U_motor*Kappa.*sqrt(Lambda.^2-1)./sqrt(Lambda.^2-Kappa.^2);
+HydroUpper=Lambda./(Lambda.^2-1)-(lambda_0.^2+1)/(lambda_0.^2-1)*acoth(Lambda);
+HydroLower=lambda_0/(lambda_0^2-1)-(lambda_0.^2+1)/(lambda_0.^2-1)*acoth(lambda_0);
+HydrodynamicPart=HydroFactor.*HydroUpper./HydroLower;
+% Electrostatic Part
+ElectroFactor1=0.5*(Lambda-2*lambda_0)./(c^2*sqrt(Lambda.^2-1).*sqrt(Lambda.^2-Kappa.^2));
+ElectroFactor2=1/(lambda_0^2-1)*(sigma_2/sigma_1)*(mu_motor/c);
+ElectroSeriesVal=VelocityXiCompSeries(Xi,Theta);
+ElectroPart=ElectroFactor1.*ElectroFactor2.*ElectroSeriesVal;
+% Combine together
+VXiVal=HydrodynamicPart+ElectroPart;
+end
+
+function [VThetaVal] = VelocityFieldThetaComp(Xi,Theta)
+% This function is used for calculating the xi component of velocity field
+% global parameters
+global c
+global xi_0
+global U_motor
+global mu_motor
+% auxiliary variables
+Lambda=cosh(Xi);
+lambda_0=cosh(xi_0);
+Kappa=cos(Theta);
+sigma_1=-lambda_0+lambda_0^2*acoth(lambda_0)+acoth(lambda_0);
+sigma_2=-lambda_0+lambda_0^2*acoth(lambda_0)-acoth(lambda_0);
+% Calculation
+% Hydrodynamic Part
+HydroFactor=-U_motor*sqrt(1-Kappa.^2)./(2*sqrt(Lambda.^2-Kappa.^2));
+HydroUpper=1-((lambda_0^2+1)/(lambda_0^2-1)*(2*Lambda.*acoth(Lambda)-1));
+HydroLower=lambda_0/(lambda_0^2-1)-(lambda_0^2+1)/(lambda_0^2-1)*acoth(lambda_0);
+HydrodynamicPart=HydroFactor.*HydroUpper./HydroLower;
+% Electrostatic Part
+ElectroFactor1=1./(0.5*(c^2.*sqrt(1-Kappa.^2).*sqrt(Lambda.^2-Kappa.^2)));
+ElectroFactor2=(1/(lambda_0^2-1))*(sigma_2/sigma_1)*(mu_motor/c);
+ElectroSeriesVal=VelocityThetaCompSeries(Xi,Theta);
+ElectroPart=ElectroFactor1.*ElectroFactor2.*ElectroSeriesVal;
+% Combine together
+VThetaVal=HydrodynamicPart+ElectroPart;
+end
+
+function [Val] = VelocityThetaCompSeries(Xi,Theta)
+global EPTruncNum
+global LegendreQTruncNum
+global EPCoefList
+global xi_0
+Val=0;
+for i=0:1:EPTruncNum
+    Val=Val+EPCoefList(i+1)*LegendreQ(i,cosh(xi_0),LegendreQTruncNum)*DLegendreP(i,0,cos(Theta));
+end
+end
+
+function [Val] = VelocityXiCompSeries(Xi,Theta)
+global EPTruncNum
+global LegendreQTruncNum
+global EPCoefList
+global xi_0
+Val=0;
+for i=0:1:EPTruncNum
+    Val=Val+EPCoefList(i+1)*LegendreQ(i,cosh(xi_0),LegendreQTruncNum).*DDLegendreP(i,0,cos(Theta));
+end
+end
+
 function [IntVal]=EPIntegral(theta,n)
 % This function is an auxiliary function for calculating coefficients of
 % electrical potential
 global xi_0
 Temp=legendre(n,cos(theta));
 IntVal=CoverageFunc(theta).*sqrt(sinh(xi_0).^2+sin(theta).^2).*Temp(1,:).*(-sin(theta));
+end
+
+function [CleanedData] = ExcludeOutliers(RawData,percentileUp,percentileDown)
+% This function is used for clearing very large and small value
+UpperLim=prctile(RawData(:),percentileUp);
+LowerLim=prctile(RawData(:),percentileDown);
+RawData((RawData>UpperLim) | (RawData<LowerLim))=NaN;
+CleanedData=RawData;
 end
