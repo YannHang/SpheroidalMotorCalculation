@@ -28,20 +28,38 @@ global EPTruncNum % Control the number of terms which used for calculating elect
 EPTruncNum=30;
 global EPCoefList % Store coefficients appeared in electrical potential for repeating usage
 EPCoefList=zeros(1,EPTruncNum+1);
+global MeshNum
+MeshNum=200;
 
 Initialization();
 
 %ElectricalPotential(xi_0,pi)
-xi=linspace(xi_0,10*xi_0,2000);
-theta=linspace(0,pi,2000);
+xi=linspace(xi_0,10*xi_0,MeshNum);
+theta=linspace(0,pi,MeshNum);
 [Xi,Theta]=meshgrid(xi,theta);
 % Because of the axis symmetry, fixed Phi=0
 Phi=zeros(size(Xi));
 % Convert to Cartesian coordinates
 [X,Y,Z]=ProlateSpheroidal2Cartesian_Coor(Xi,Theta,Phi);
 EPVal=ElectricalPotential(Xi,Theta);
-
+% contour plot of electrical potential
 contourf(X,Z,EPVal)
+hold on
+
+%[startX,startY,startZ]=ProlateSpheroidal2Cartesian_Coor(linspace(xi_0,xi_0,10),linspace(pi/2,pi,10),linspace(0,0,10));
+%streamline(X(101:end,101:end),Z(101:end,101:end),EX(101:end,101:end),EZ(101:end,101:end),startX,startZ);
+% down mesh for better visualization of electrical field
+xi_e=linspace(xi_0,10*xi_0,MeshNum/10);
+theta_e=linspace(0,pi,MeshNum/10);
+[Xi_e,Theta_e]=meshgrid(xi_e,theta_e);
+Phi_e=zeros(size(Xi_e));
+[X_e,Y_e,Z_e]=ProlateSpheroidal2Cartesian_Coor(Xi_e,Theta_e,Phi_e);
+% Obtain electrical field
+EXiComp=ElectricalFieldXiComp(Xi_e,Theta_e);
+EThetaComp=ElectricalFieldThetaComp(Xi_e,Theta_e);
+[EX,EZ]=ProlateSpheroidal2Cartesian_Comp(Xi_e,Theta_e,EXiComp,EThetaComp);
+% quiver plot of electrical field
+quiver(X_e,Z_e,EX,EZ,1.5);
 
 end
 
@@ -73,10 +91,25 @@ Y=c*sinh(Xi).*sin(Theta).*sin(Phi);
 Z=c*cosh(Xi).*cos(Theta);
 end
 
-function [X,Z]=ProlateSpheroidal2Cartesian_Comp(XiComp,ThetaComp)
+function [XComp,ZComp]=ProlateSpheroidal2Cartesian_Comp(Xi,Theta,XiComp,ThetaComp)
 % Transform Xi component and Theta Component in prolatespheroidal
 % coordinates system to cartesian coordinates system
+global c
+% angle which characterizes the relation between two coordinate
+% corresponding x coordinates value
+%X=c.*sinh(Xi).*sin(Theta);
+% prepare intermediate value
+%TVal=(cosh(Xi)./(c*sinh(Xi).^2)).*(X./sqrt(1-(X.^2)./(c^2*sinh(Xi).^2)));
+TVal=(cosh(Xi)./sinh(Xi)).*(sin(Theta)./abs(cos(Theta)));
+% do inverse arctan operation, specially, here we want it returned value
+% range from 0 to pi
+Angle=atan(TVal);
+Angle(Theta>pi/2)=pi-Angle(Theta>pi/2);
 
+% Then, transform XiComp and ThetaComp into XComp and ZComp according to
+% the value of Angle
+XComp=XiComp.*sin(Angle)+ThetaComp.*cos(Angle);
+ZComp=XiComp.*cos(Angle)-ThetaComp.*sin(Angle);
 end
 
 function [EVal]=ElectricalFieldXiComp(xi,theta)
