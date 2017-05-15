@@ -6,16 +6,28 @@ ParameterSetting();
 % Initialization
 Initialization();
 
-%DrawElectricalPotential()
+DrawElectricalPotential()
 %hold on
 %DrawElectricalField()
 %hold off
 
 figure
 %DrawStreamFunction()
-DrawVelocityFieldMag()
+%DrawVelocityFieldMag()
 hold on
-DrawVelocityField()
+%DrawVelocityField()
+i=30;
+theta=linspace(0,pi,1000);
+%plot(x,LegendreP(i,0,x))
+%plot(x,DLegendreP(i,0,x))
+%plot(x,DDLegendreP(i,0,x))
+%legend('0','1','2')
+xi=zeros(size(theta));
+%plot(theta,VelocityXiCompSeries(xi,theta));
+%plot(theta,VelocityThetaCompSeries(xi,theta));
+%global EPTruncNum
+%global EPCoefList
+%plot(0:1:EPTruncNum,EPCoefList)
 end
 
 function []=Initialization()
@@ -289,7 +301,7 @@ end
 function [DDVal] = DDLegendreP(l,m,x)
 % This function is used for calculating second derivatives of legendre
 % polynoials
-deltax=1e-5;
+deltax=1e-2;
 DDVal=(DLegendreP(l,m,x+deltax)-DLegendreP(l,m,x-deltax))/(2*deltax);
 end
 
